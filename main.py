@@ -4,15 +4,21 @@ from bs4 import BeautifulSoup
 import fake_useragent
 import openpyxl
 
+SITES_VALUE = 0
+STATS_VALUE = 0
+
 def main():
 
+    creat_new_excel_file()
     summers = 0
 
+    schedule.every(5).seconds.do(parsing_LI)
+    while True:
+        schedule.run_pending()
+
     parsing_LI()
-    create_list_name_sportsites()
-    create_list_values_sportssites()
-    push_values_in_excel()
-    get_timeout()
+
+
 def parsing_LI(): # функция для парсинга
 
     url = "https://www.liveinternet.ru/rating/ru/sport/today.tsv?"
@@ -25,6 +31,11 @@ def parsing_LI(): # функция для парсинга
     resource = requests.get(url).text
     global sport_list
     sport_list = resource.split("\t")
+
+    create_list_name_sportsites()
+    create_list_values_sportssites()
+    edit_values_in_excel()
+    creat_set_table()
 
 def create_list_name_sportsites(): # для создания списка сайтов
 
@@ -54,50 +65,70 @@ def create_list_values_sportssites():
 
     print()
 
-def push_values_in_excel():
-
-    sites_list_number = 0
-    stats_list_number = 0
-
+def creat_new_excel_file():
     book = openpyxl.Workbook()
     book.remove(book.active)
-    sheet_1 = book.create_sheet("Данные")
-
-    sheet_1.column_dimensions['A'].width = 50
+    sheet_1 = book.create_sheet("Сводная таблица")
+    sheet_2 = book.create_sheet("Данные")
+    sheet_1.column_dimensions['A'].width = 100
     sheet_1.column_dimensions['B'].width = 20
+    sheet_2.column_dimensions['A'].width = 100
+    sheet_2.column_dimensions['B'].width = 20
+    book.save("massive.xlsx")
+    book.close()
+def edit_values_in_excel():
+    '''Функция для загрузки данных после создания файла'''
+    global SITES_VALUE
+    sites_list_number = SITES_VALUE
+    global STATS_VALUE
+    stats_list_number = STATS_VALUE
+
+    book = openpyxl.load_workbook("massive.xlsx")
+    sheet_1 = book.worksheets[1]
+
 
     cells_sites = []  # create list cells in excel file
-
     for i in sport_sites:  # добавление ячеек
         cells_sites.append(f'A{sites_list_number + 1}')
         sites_list_number +=1
     print(cells_sites)
+    SITES_VALUE = sites_list_number
 
     for cell in cells_sites:  # добавление в ячейки файла названий сайтов
         sheet_1[cell] = sport_sites[cells_sites.index(cell)]
 
     cells_stats = []  # create list cells in excel file
-
     for i in summers:  # добавление ячеек
         cells_stats.append(f'B{stats_list_number + 1}')
         stats_list_number += 1
     print(cells_stats)
+    STATS_VALUE = stats_list_number
 
     for cell in cells_stats:  # добавление в ячейки файла статистики сайтов
         sheet_1[cell] = summers[cells_stats.index(cell)]
 
 
-
-
     book.save("massive.xlsx")
     book.close()
 
-def get_timeout():
+def creat_set_table():
+    '''Создаёт таблицу уникальных значений'''
+    book = openpyxl.load_workbook("massive.xlsx")
+    sheet_1 = book.worksheets[1]
 
-    schedule.every(5).seconds.do(parsing_LI)
+    set_sports_site_table_at_excel = set()
+    for i in range (1, sheet_1.max_row + 1):
+        set_sports_site_table_at_excel.add(sheet_1[i][0].value)
+    print(set_sports_site_table_at_excel)
+    sheet_1=book.worksheets[0]
 
-    while True:
-        schedule.run_pending()
+    ROW_TABLE = 1
+    for save in set_sports_site_table_at_excel:
+        c1 = sheet_1.cell(row=ROW_TABLE, column=1)
+        c1.value = save
+        ROW_TABLE += 1
+    book.save("massive.xlsx")
+    book.close()
 
 if __name__ == '__main__':
     main()
